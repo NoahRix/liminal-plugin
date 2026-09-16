@@ -1,0 +1,79 @@
+# Level 1 - Parking Garage
+# Second ripple ring: an abandoned multi-deck parking garage with a repeated
+# structural bay, red column bands, broad driving aisles, ramps, and sparse
+# warm ceiling lights.
+
+enabled: true
+name: "Level 1 - Parking Garage"
+
+min-radius: 150
+max-radius: 950
+# Keep 0 so every level shares the same floor height (Y -63).
+elevation-step: 0
+
+min-y: -64
+max-y: 0
+ceiling-height: 7
+
+# Kept for compatibility with the generic config model; parking-garage mode
+# replaces randomized rooms with one continuous deck.
+room:
+  min-width: 48
+  max-width: 48
+  min-length: 48
+  max-length: 48
+  wall-material: LIGHT_GRAY_CONCRETE
+  floor-material: GRAY_CONCRETE
+  ceiling-material: SMOOTH_STONE
+
+# Sparse paired horizontal end rods mounted to the ceiling.
+lighting:
+  material: SEA_LANTERN
+  style: ceiling
+  flicker-chance: 0.08
+
+# Four stacked decks use the deterministic parking-garage bay generator.
+layout:
+  mode: parking-garage
+  floors: 4
+  floor-offset: 1
+  doorway-height: 3
+
+features:
+  - type: parking-garage
+    # Pillar boundaries repeat every 16 blocks: 15 clear blocks plus the
+    # shared boundary pillar produces a 16-block inclusive bay footprint.
+    bay-spacing: 16
+    column-size: 1
+    column-material: LIGHT_GRAY_CONCRETE
+    column-base-material: POLISHED_DEEPSLATE
+    column-band-material: RED_CONCRETE
+    column-band-bottom: 2
+    column-band-height: 2
+    beam-material: LIGHT_GRAY_CONCRETE
+    beam-depth: 1
+    stall-line-material: WHITE_CONCRETE
+
+# ---------------------------------------------------------------
+# Loot: disabled out of the box - ships clean.
+# Set enabled: true and uncomment `entries` to spawn loot containers.
+# Each entry rolls independently when a container spawns: `chance`
+# (0.0-1.0) to be included, amount random between min and max.
+loot:
+  enabled: false
+  chance: 0.005       # per floor block - chance a loot container spawns
+  container: CHEST    # CHEST or BARREL
+  # entries:
+  #   - material: TORCH
+  #     min: 2
+  #     max: 6
+  #     chance: 0.5
+
+# ---------------------------------------------------------------
+# Hazards: disabled out of the box - ships clean.
+# Available types: WATER (puddle), FIRE (burn patch), COBWEB (2-high web).
+# Uncomment `types` to restrict which hazards may spawn (default: all).
+hazards:
+  enabled: false
+  chance: 0.003       # per floor block - chance a hazard spawns
+  # types: [WATER, FIRE, COBWEB]

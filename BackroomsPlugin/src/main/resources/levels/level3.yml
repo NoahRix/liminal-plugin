@@ -1,0 +1,118 @@
+# Level 3 - The Rails
+# Outermost ring: an abandoned rail network. A grid of track lines crosses the
+# level (X-lines at Z ~= line-offset mod grid, Z-lines at X ~= line-offset mod
+# grid), crossing at viaducts, with powered rails, stations, and roaming ghost
+# minecarts. Everything below is admin-tunable.
+
+enabled: true
+name: "Level 3 - The Rails"
+
+min-radius: 1100
+max-radius: -1        # extends to infinity
+# Keep 0 so every level shares the same floor height (Y -63).
+elevation-step: 0
+
+min-y: -64
+max-y: 0
+ceiling-height: 8
+
+room:
+  min-width: 12
+  max-width: 32
+  min-length: 12
+  max-length: 32
+  wall-material: CRACKED_DEEPSLATE_TILES
+  floor-material: COBBLED_DEEPSLATE
+  ceiling-material: SMOOTH_BASALT
+
+# Floor torches instead of ceiling lights; torches near the rails are skipped
+# (dark-radius) so the tracks stay dark. A quarter of them flicker.
+lighting:
+  material: REDSTONE_TORCH
+  spacing: 7
+  style: floor-torch
+  flicker-chance: 0.25
+  dark-radius: 1
+
+# Taller doorways so a minecart with a rider fits through wall archways.
+layout:
+  floors: 1
+  floor-offset: 1
+  doorway-height: 3
+
+features:
+  - type: stray-chest   # rare loose chest; chance is per chunk
+    chance: 0.004
+
+  - type: rail-network
+    # Grid geometry
+    grid: 32            # one line every `grid` blocks
+    line-offset: 16     # lines at coord % grid == line-offset
+    power-every: 8      # one powered rail every N blocks along a line
+    station-every: 96   # one station every N blocks along an X line
+    # Viaducts (Z lines bridge over X lines at crossings)
+    viaduct-height: 4   # beam height above the floor-level rail
+    viaduct-half: 4     # half-length of the ramp approach
+    # Decay
+    cobweb-chance: 0.02        # cobwebs beside rails (never on them)
+    broken-track-chance: 0.0   # rail gaps; 0 = tracks always intact
+    ghost-cart-chance: 0.35    # chance a rail chunk spawns a roaming minecart
+    # Stations
+    station:
+      platform: POLISHED_BASALT
+      platform-length: 6       # blocks along the line
+      platform-depth: 3        # blocks away from the track
+      sign: OAK_SIGN
+      sign-count: 2
+      chest: CHEST
+      torch: REDSTONE_TORCH
+      # Station chest contents: each entry rolls independently per chest
+      # (chance 0.0-1.0 to be included, amount random between min and max).
+      supplies:
+        - {material: RAIL, min: 4, max: 13, chance: 0.6}
+        - {material: POWERED_RAIL, min: 2, max: 7, chance: 0.6}
+        - {material: REDSTONE_TORCH, min: 2, max: 7, chance: 0.6}
+        - {material: REDSTONE, min: 1, max: 8, chance: 0.6}
+        - {material: COAL, min: 3, max: 10, chance: 0.6}
+        - {material: BOOK, min: 1, max: 2, chance: 0.6}
+      # Ghost chest-cart contents (25% of ghost carts carry supplies)
+      cart-supplies:
+        - {material: RAIL, min: 4, max: 11, chance: 0.5}
+        - {material: POWERED_RAIL, min: 2, max: 5, chance: 0.5}
+        - {material: REDSTONE_TORCH, min: 2, max: 5, chance: 0.5}
+        - {material: REDSTONE, min: 1, max: 6, chance: 0.5}
+        - {material: COAL, min: 3, max: 8, chance: 0.5}
+        - {material: BOOK, min: 1, max: 1, chance: 0.5}
+        - {material: NAME_TAG, min: 1, max: 1, chance: 0.5}
+
+# Optional per-level transition gradient override (blending INTO this level).
+# Leave commented to let the generator derive an automatic colour-space
+# gradient from the two levels' own materials.
+# transition:
+#   wall-gradient: [MAT_A, MAT_MID, MAT_B]
+#   floor-gradient: [...]
+#   ceiling-gradient: [...]
+
+# ---------------------------------------------------------------
+# Loot: disabled out of the box - ships clean.
+# Set enabled: true and uncomment `entries` to spawn loot containers.
+# Each entry rolls independently when a container spawns: `chance`
+# (0.0-1.0) to be included, amount random between min and max.
+loot:
+  enabled: false
+  chance: 0.005       # per floor block - chance a loot container spawns
+  container: CHEST    # CHEST or BARREL
+  # entries:
+  #   - material: RAIL
+  #     min: 4
+  #     max: 14
+  #     chance: 0.6
+
+# ---------------------------------------------------------------
+# Hazards: disabled out of the box - ships clean.
+# Available types: WATER (puddle), FIRE (burn patch), COBWEB (2-high web).
+# Uncomment `types` to restrict which hazards may spawn (default: all).
+hazards:
+  enabled: false
+  chance: 0.003       # per floor block - chance a hazard spawns
+  # types: [WATER, FIRE, COBWEB]

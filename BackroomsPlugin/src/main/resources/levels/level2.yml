@@ -1,0 +1,101 @@
+# Level 2 - Pipe Dreams
+# Third ripple ring: an abandoned nuclear power plant basement — tight
+# pipe-lined hallways strung with bundles of aging copper pipe runs, conduit
+# stubs, coolant puddles and lava seeps.
+
+enabled: true
+name: "Level 2 - Pipe Dreams"
+
+min-radius: 950
+max-radius: 1100
+# Keep 0 so every level shares the same floor height (Y -63).
+elevation-step: 0
+
+min-y: -64
+max-y: 0
+ceiling-height: 7
+
+room:
+  # Room cells of exactly 16 align with the chunk grid, so every chunk is a
+  # room cell: rooms of 12-16 leave only 0-4 block gaps - tight hallways
+  # lined with pipes.
+  min-width: 12
+  max-width: 16
+  min-length: 12
+  max-length: 16
+  wall-material: DEEPSLATE_BRICKS
+  floor-material: DEEPSLATE
+  ceiling-material: SMOOTH_STONE
+
+lighting:
+  material: REDSTONE_LAMP
+  spacing: 6
+  style: ceiling
+
+# Single floor; cramped doorways reinforce the tunnel feel.
+layout:
+  floors: 1
+  floor-offset: 1
+  doorway-height: 2
+
+features:
+  - type: stray-chest   # rare loose chest; chance is per chunk
+    chance: 0.004
+  - type: pipes         # bundles of aging copper pipes along every wall
+    chance: 0.85        # per wall
+    height-offset: 2    # blocks below the ceiling for the top row
+    rows: 3             # stacked pipe lines per bundle
+    materials: [CUT_COPPER, EXPOSED_COPPER, WEATHERED_COPPER, OXIDIZED_COPPER]
+    segment-length: 4   # cells per material segment
+    bracket: YELLOW_TERRACOTTA
+    bracket-spacing: 5
+  - type: wall-columns  # vertical conduit stubs against the walls
+    material: LIGHTNING_ROD
+    chance: 0.03
+    max-height: 4
+  - type: floor-pool    # coolant leaks
+    material: WATER
+    chance: 0.004
+  - type: floor-pool    # lava seeps
+    material: LAVA
+    chance: 0.003
+
+# Optional per-level transition gradient override (blending INTO this level).
+# Leave commented to let the generator derive an automatic colour-space
+# gradient from the two levels' own materials.
+# transition:
+#   wall-gradient: [MAT_A, MAT_MID, MAT_B]
+#   floor-gradient: [...]
+#   ceiling-gradient: [...]
+
+# ---------------------------------------------------------------
+# Loot: disabled out of the box - ships clean.
+# Set enabled: true and uncomment `entries` to spawn loot containers.
+# Each entry rolls independently when a container spawns: `chance`
+# (0.0-1.0) to be included, amount random between min and max.
+loot:
+  enabled: false
+  chance: 0.005       # per floor block - chance a loot container spawns
+  container: CHEST    # CHEST or BARREL
+  # entries:
+  #   - material: REDSTONE
+  #     min: 1
+  #     max: 8
+  #     chance: 0.6
+  #   - material: REDSTONE_TORCH
+  #     min: 2
+  #     max: 6
+  #     chance: 0.4
+  #   - material: IRON_INGOT
+  #     min: 1
+  #     max: 4
+  #     chance: 0.3
+
+# ---------------------------------------------------------------
+# Hazards: disabled out of the box - ships clean.
+# Available types: WATER (puddle), FIRE (burn patch), COBWEB (2-high web).
+# Uncomment `types` to restrict which hazards may spawn (default: all).
+hazards:
+  enabled: false
+  chance: 0.003       # per floor block - chance a hazard spawns
+  # types: [WATER, FIRE, COBWEB]

@@ -26,3 +26,22 @@ permissions:
   liminal.admin:
     description: Admin access to LiminalGen commands
     default: op
+  liminal.build:
+    description: Modify the Liminal world (break/place blocks, buckets, destroy placeables)
+    default: op
+  liminal.interact:
+    description: Interact with everything in the Liminal (containers, doors, entities)
+    default: op
+    children:
+      liminal.interact.container: true
+      liminal.interact.door: true
+      liminal.interact.entity: true
+  liminal.interact.container:
+    description: Open containers (chests, barrels, furnaces, shulker boxes, anvils, utility tables)
+    default: op
+  liminal.interact.door:
+    description: Use doors, trapdoors, fence gates, buttons, levers, bells and beds
+    default: op
+  liminal.interact.entity:
+    description: Ride minecarts and boats, manipulate item frames, armor stands and animals
+    default: op

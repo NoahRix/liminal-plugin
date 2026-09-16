@@ -130,14 +130,45 @@ public class LevelConfig {
      */
     private int lightSpacing;
 
-    /** Width of corridors between rooms, in blocks. */
-    private int corridorWidth;
+    /**
+     * Lighting style: {@code ceiling} places light blocks in the ceiling slab,
+     * {@code floor-torch} stands torches on the floor.
+     */
+    private String lightStyle = "ceiling";
+
+    /** Probability (0.0&ndash;1.0) that a placed light flickers; 0 disables flicker. */
+    private double lightFlickerChance;
 
     /**
-     * Probability (0.0&ndash;1.0) that a room is designated as a "special" room
-     * (e.g. loot room, hazard room, stairwell).
+     * Floor-torch style only: radius (in blocks) around rail lines where
+     * decorative torches are skipped to keep the tracks dark.
      */
-    private double specialRoomChance;
+    private int lightDarkRadius;
+
+    /**
+     * Feature list driving the level's decoration (hanging decor, floor pools,
+     * wall columns, rail networks, ...). The engine dispatches each entry to a
+     * registered feature handler by {@code type}.
+     */
+    private List<FeatureSpec> features = new ArrayList<>();
+
+    /**
+     * Number of floors to stack within the level's Y range. Floors sit one
+     * ceiling-slab above each other; 1 is a single-floor level.
+     */
+    private int floors = 1;
+
+    /** Layout algorithm used by the level (rooms, or parking-garage). */
+    private String layoutMode = "rooms";
+
+    /** Vertical offset from the floor base to the walking surface (sub-floor depth). */
+    private int floorOffset = 1;
+
+    /** Height of doorway openings in blocks (measured from the floor surface). */
+    private int doorwayHeight = 2;
+
+    /** Stairwell settings for multi-floor levels; {@code null} disables stairwells. */
+    private StairwellSpec stairwell;
 
     /**
      * Probability (0.0&ndash;1.0) that a rail cell is left empty (broken track).
@@ -156,6 +187,30 @@ public class LevelConfig {
      * (empty carts that roam the powered network on their own).
      */
     private double ghostCartChance;
+
+    /** Whether ambient loot containers spawn on this level's floors. */
+    private boolean lootEnabled;
+
+    /** Probability (0.0&ndash;1.0) per floor block that a loot container spawns. */
+    private double lootChance;
+
+    /** Container material for loot: {@code CHEST} or {@code BARREL}. */
+    private String lootContainer;
+
+    /** Loot-table entries rolled into spawned containers. */
+    private List<LootEntry> lootEntries = new ArrayList<>();
+
+    /** Whether environmental hazards spawn on this level's floors. */
+    private boolean hazardsEnabled;
+
+    /** Probability (0.0&ndash;1.0) per floor block that a hazard spawns. */
+    private double hazardChance;
+
+    /**
+     * Allowed hazard types (WATER, FIRE, COBWEB). An empty list means all
+     * types are permitted.
+     */
+    private List<Material> hazardTypes = new ArrayList<>();
 
     // -------------------------------------------------------------------------
     // Getters and setters
@@ -244,10 +299,10 @@ public class LevelConfig {
      * Returns the world Y of this level's ground-floor surface block, including
      * the level's elevation step.
      *
-     * @return {@code minY + elevationStep + 1}
+     * @return {@code minY + elevationStep + floorOffset}
      */
     public int getFloorSurfaceY() {
-        return minY + elevationStep + 1;
+        return minY + elevationStep + floorOffset;
     }
 
     /** Returns the ceiling height in blocks. */
@@ -310,17 +365,73 @@ public class LevelConfig {
     /** Sets the light spacing in blocks. */
     public void setLightSpacing(int lightSpacing) { this.lightSpacing = lightSpacing; }
 
-    /** Returns the corridor width in blocks. */
-    public int getCorridorWidth() { return corridorWidth; }
+    /** Returns the lighting style ({@code ceiling} or {@code floor-torch}). */
+    public String getLightStyle() { return lightStyle; }
 
-    /** Sets the corridor width in blocks. */
-    public void setCorridorWidth(int corridorWidth) { this.corridorWidth = corridorWidth; }
+    /** Sets the lighting style ({@code ceiling} or {@code floor-torch}). */
+    public void setLightStyle(String lightStyle) { this.lightStyle = lightStyle; }
 
-    /** Returns the special room probability (0.0&ndash;1.0). */
-    public double getSpecialRoomChance() { return specialRoomChance; }
+    /** Returns the light flicker probability (0 disables flicker). */
+    public double getLightFlickerChance() { return lightFlickerChance; }
 
-    /** Sets the special room probability (0.0&ndash;1.0). */
-    public void setSpecialRoomChance(double specialRoomChance) { this.specialRoomChance = specialRoomChance; }
+    /** Sets the light flicker probability (0 disables flicker). */
+    public void setLightFlickerChance(double lightFlickerChance) { this.lightFlickerChance = lightFlickerChance; }
+
+    /** Returns the rail-adjacent torch exclusion radius (floor-torch style). */
+    public int getLightDarkRadius() { return lightDarkRadius; }
+
+    /** Sets the rail-adjacent torch exclusion radius (floor-torch style). */
+    public void setLightDarkRadius(int lightDarkRadius) { this.lightDarkRadius = lightDarkRadius; }
+
+    /** Returns the level's feature list. */
+    public List<FeatureSpec> getFeatures() { return features; }
+
+    /** Sets the level's feature list. */
+    public void setFeatures(List<FeatureSpec> features) { this.features = features; }
+
+    /**
+     * Returns the first feature of the given type, or {@code null} when the
+     * level does not configure it.
+     *
+     * @param type the feature type key
+     * @return the feature spec, or {@code null}
+     */
+    public FeatureSpec getFeature(String type) {
+        for (FeatureSpec spec : features) {
+            if (spec.getType().equals(type)) return spec;
+        }
+        return null;
+    }
+
+    /** Returns the number of stacked floors (1 = single-floor level). */
+    public int getFloors() { return floors; }
+
+    /** Sets the number of stacked floors (1 = single-floor level). */
+    public void setFloors(int floors) { this.floors = floors; }
+
+    /** Returns the configured layout algorithm. */
+    public String getLayoutMode() { return layoutMode; }
+
+    /** Sets the configured layout algorithm. */
+    public void setLayoutMode(String layoutMode) { this.layoutMode = layoutMode; }
+
+    /** Returns the sub-floor depth (offset from floor base to walking surface). */
+    public int getFloorOffset() { return floorOffset; }
+
+    /** Sets the sub-floor depth (offset from floor base to walking surface). */
+    public void setFloorOffset(int floorOffset) { this.floorOffset = floorOffset; }
+
+    /** Returns the doorway height in blocks. */
+    public int getDoorwayHeight() { return doorwayHeight; }
+
+    /** Sets the doorway height in blocks. */
+    public void setDoorwayHeight(int doorwayHeight) { this.doorwayHeight = doorwayHeight; }
+
+    /** Returns the stairwell settings, or {@code null} when stairwells are disabled. */
+    public StairwellSpec getStairwell() { return stairwell; }
+
+    /** Sets the stairwell settings ({@code null} disables stairwells). */
+    public void setStairwell(StairwellSpec stairwell) { this.stairwell = stairwell; }
 
     /** Returns the broken-track probability (0 disables broken track). */
     public double getBrokenTrackChance() { return brokenTrackChance; }
@@ -339,6 +450,48 @@ public class LevelConfig {
 
     /** Sets the ghost minecart spawn probability per rail chunk. */
     public void setGhostCartChance(double ghostCartChance) { this.ghostCartChance = ghostCartChance; }
+
+    /** Returns whether ambient loot containers spawn on this level. */
+    public boolean isLootEnabled() { return lootEnabled; }
+
+    /** Sets whether ambient loot containers spawn on this level. */
+    public void setLootEnabled(boolean lootEnabled) { this.lootEnabled = lootEnabled; }
+
+    /** Returns the per-floor-block loot container spawn probability. */
+    public double getLootChance() { return lootChance; }
+
+    /** Sets the per-floor-block loot container spawn probability. */
+    public void setLootChance(double lootChance) { this.lootChance = lootChance; }
+
+    /** Returns the loot container material name ({@code CHEST} or {@code BARREL}). */
+    public String getLootContainer() { return lootContainer; }
+
+    /** Sets the loot container material name ({@code CHEST} or {@code BARREL}). */
+    public void setLootContainer(String lootContainer) { this.lootContainer = lootContainer; }
+
+    /** Returns the loot-table entries rolled into spawned containers. */
+    public List<LootEntry> getLootEntries() { return lootEntries; }
+
+    /** Sets the loot-table entries rolled into spawned containers. */
+    public void setLootEntries(List<LootEntry> lootEntries) { this.lootEntries = lootEntries; }
+
+    /** Returns whether environmental hazards spawn on this level. */
+    public boolean isHazardsEnabled() { return hazardsEnabled; }
+
+    /** Sets whether environmental hazards spawn on this level. */
+    public void setHazardsEnabled(boolean hazardsEnabled) { this.hazardsEnabled = hazardsEnabled; }
+
+    /** Returns the per-floor-block hazard spawn probability. */
+    public double getHazardChance() { return hazardChance; }
+
+    /** Sets the per-floor-block hazard spawn probability. */
+    public void setHazardChance(double hazardChance) { this.hazardChance = hazardChance; }
+
+    /** Returns the allowed hazard types; empty means all types are permitted. */
+    public List<Material> getHazardTypes() { return hazardTypes; }
+
+    /** Sets the allowed hazard types; empty means all types are permitted. */
+    public void setHazardTypes(List<Material> hazardTypes) { this.hazardTypes = hazardTypes; }
 
     /**
      * Returns the total height of this level's vertical slice in blocks.

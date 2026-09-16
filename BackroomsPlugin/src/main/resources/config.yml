@@ -1,33 +1,41 @@
 # LiminalGen Configuration
-# Multi-level Liminal world generator with BlueMap & MultiWorld integration
+#
+# This file holds GLOBAL settings only. Each level's configuration lives in
+# its own file under plugins/LiminalGen/levels/ (level0.yml, level1.yml, ...),
+# covering ring radii, elevation steps, room dimensions, materials, lighting,
+# per-level loot tables, hazards, transition gradient overrides, and rail
+# settings. Missing level files are recreated from the jar's defaults on
+# startup; a legacy inline `levels:` section below is migrated into individual
+# files once. Edits are picked up by /liminaladmin reload.
 #
 # == LEVEL LAYOUT: RIPPLE RINGS ==
 # Levels are arranged as concentric rings around world spawn (0,0), like ripples
 # spreading outward. Every chunk belongs to exactly ONE level, chosen by the
-# chunk centre's distance from spawn:
+# chunk centre's distance from spawn (configured in each levels/*.yml file):
 #
 #   distance = sqrt(chunkCentreX^2 + chunkCentreZ^2)   (in blocks)
 #
 # A chunk matches a level when:  min-radius <= distance  and  distance < max-radius
 # (max-radius: -1 means the ring extends to infinity).
 #
-# To add a new level, add a config entry with a unique id, set its ring radii to
-# tile outward from the previous level, and (optionally) implement a dedicated
-# generator subclass later. Levels without a subclass use the generic generator.
+# To add a new level, create levels/<id>.yml with unique ring radii tiling
+# outward from the previous level. Levels without a dedicated generator
+# subclass use the generic generator automatically.
 #
 # == LEVEL ELEVATION & TRANSITIONS ==
 # Each level sits `elevation-step` blocks higher than the previous one, and the
 # transition corridors between rings ramp smoothly between the two elevations:
 # a sloped walkway (one block up every few steps, walkable and climbable by
 # powered rails), material gradients, perimeter walls with doorways, support
-# pillars, ceiling lights, and standing signs announcing the levels.
+# pillars, and ceiling lights.
 # `generation.transition-width` controls the corridor width in blocks.
 #
 # Transition materials are AUTOMATIC by default: the generator interpolates the
 # two levels' own materials in colour space and picks the nearest real blocks
 # at each step of the ramp, so any level pairing works with zero configuration.
-# To art-direct a specific transition, add an optional per-level override (the
-# gradient describes blending INTO that level from the previous one):
+# To art-direct a specific transition, add an optional per-level override in
+# that level's file (the gradient describes blending INTO that level from the
+# previous one):
 #   transition:
 #     wall-gradient: [MAT_A, MAT_MID, MAT_B]
 #     floor-gradient: [...]
@@ -36,109 +44,14 @@
 
 liminal-world-name: "liminal"
 
-levels:
-  level0:
-    enabled: true
-    name: "Level 0 - The Lobby"
-    min-radius: 0
-    max-radius: 400
-    elevation-step: 0
-    min-y: -64
-    max-y: 0
-    ceiling-height: 4
-    room:
-      min-width: 8
-      max-width: 24
-      min-length: 8
-      max-length: 24
-      wall-material: BIRCH_PLANKS
-      floor-material: LIGHT_GRAY_CONCRETE
-      ceiling-material: SMOOTH_STONE
-    lighting:
-      material: SEA_LANTERN
-      spacing: 5
-    corridor-width: 2
-    special-room-chance: 0.05
-  level1:
-    enabled: true
-    name: "Level 1 - Habitable Zone"
-    min-radius: 400
-    max-radius: 1200
-    elevation-step: 4
-    min-y: -64
-    max-y: 0
-    ceiling-height: 6
-    room:
-      min-width: 10
-      max-width: 32
-      min-length: 10
-      max-length: 32
-      wall-material: POLISHED_BLACKSTONE_BRICKS
-      floor-material: POLISHED_BLACKSTONE
-      ceiling-material: SMOOTH_STONE
-    lighting:
-      material: SOUL_LANTERN
-      spacing: 7
-    corridor-width: 3
-    special-room-chance: 0.08
-  level2:
-    enabled: true
-    name: "Level 2 - Pipe Dreams"
-    min-radius: 1200
-    max-radius: 2000
-    elevation-step: 8
-    min-y: -64
-    max-y: 0
-    ceiling-height: 5
-    room:
-      min-width: 8
-      max-width: 28
-      min-length: 8
-      max-length: 28
-      wall-material: DEEPSLATE_BRICKS
-      floor-material: DEEPSLATE
-      ceiling-material: SMOOTH_STONE
-    lighting:
-      material: REDSTONE_LAMP
-      spacing: 6
-    corridor-width: 2
-    special-room-chance: 0.10
-  level3:
-    enabled: true
-    name: "Level 3 - The Rails"
-    min-radius: 2000
-    max-radius: -1
-    elevation-step: 12
-    rails: true
-    min-y: -64
-    max-y: 0
-    ceiling-height: 8
-    room:
-      min-width: 12
-      max-width: 32
-      min-length: 12
-      max-length: 32
-      wall-material: CRACKED_DEEPSLATE_TILES
-      floor-material: COBBLED_DEEPSLATE
-      ceiling-material: SMOOTH_BASALT
-    lighting:
-      material: REDSTONE_TORCH
-      spacing: 7
-    corridor-width: 3
-    special-room-chance: 0.05
-    # Rail-specific settings (Level 3)
-    broken-track-chance: 0.0     # rail gaps; 0 = tracks always intact
-    cobweb-chance: 0.02          # cobwebs beside rails (never on them)
-    ghost-cart-chance: 0.35      # chance a rail chunk spawns a roaming minecart
-
 gameplay:
   mob-spawning: true
-  loot-generation: true
-  hazards: true
+  loot-generation: true     # master switch; each level's file also gates loot per level
+  hazards: true             # master switch; each level's file also gates hazards per level
   hunger-enabled: true
   pvp: false
   difficulty: NORMAL
-  spawn-monsters: true
+  spawn-monsters: false
   spawn-animals: false
   weather-enabled: false
 
@@ -171,5 +84,3 @@ generation:
   grid-cell-size: 16
   transition-width: 40
   stairwell-chance: 0.02
-  loot-room-chance: 0.04
-  hazard-room-chance: 0.03
