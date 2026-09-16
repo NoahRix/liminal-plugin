@@ -8,6 +8,7 @@ import org.derpcraft.liminal.integration.bluemap.BlueMapHook;
 import org.derpcraft.liminal.integration.multiworld.MultiWorldHook;
 import org.derpcraft.liminal.listeners.PlayerListener;
 import org.derpcraft.liminal.listeners.WorldListener;
+import org.derpcraft.liminal.listeners.ProtectionListener;
 import org.derpcraft.liminal.listeners.LightBreakListener;
 import org.derpcraft.liminal.listeners.RailsListener;
 import org.derpcraft.liminal.effects.FlickerManager;
@@ -31,9 +32,8 @@ import java.util.logging.Level;
  *   <li>{@link LiminalConfig} &ndash; loads and holds all configuration from {@code config.yml}</li>
  *   <li>{@link LiminalChunkGenerator} &ndash; orchestrates chunk generation by delegating to levels</li>
  *   <li>{@link org.derpcraft.liminal.generator.levels.LiminalLevel} &ndash; abstract base for level generators</li>
- *   <li>{@link org.derpcraft.liminal.generator.levels.Level0Lobby} &ndash; Level 0: The Lobby</li>
- *   <li>{@link org.derpcraft.liminal.generator.levels.Level1HabitableZone} &ndash; Level 1: Habitable Zone</li>
- *   <li>{@link org.derpcraft.liminal.generator.levels.Level2PipeDreams} &ndash; Level 2: Pipe Dreams</li>
+ *   <li>{@link org.derpcraft.liminal.generator.levels.LiminalLevel} &ndash; the spec-driven level engine;
+ *       per-level behaviour is defined entirely in each level's YML file</li>
  * </ul>
  *
  * <h2>Integrations</h2>
@@ -110,6 +110,7 @@ public class LiminalPlugin extends JavaPlugin {
 
         pm.registerEvents(new PlayerListener(this), this);
         pm.registerEvents(new WorldListener(this), this);
+        pm.registerEvents(new ProtectionListener(this), this);
         pm.registerEvents(new LightBreakListener(this), this);
         pm.registerEvents(new RailsListener(this), this);
 

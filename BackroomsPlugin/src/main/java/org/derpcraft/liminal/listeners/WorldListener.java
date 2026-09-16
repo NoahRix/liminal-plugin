@@ -9,6 +9,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.weather.WeatherChangeEvent;
 import org.bukkit.event.world.WorldInitEvent;
 import org.bukkit.event.world.WorldLoadEvent;
+import org.bukkit.scheduler.BukkitTask;
 
 /**
  * Handles world-related events for the Liminal world.
@@ -19,6 +20,8 @@ import org.bukkit.event.world.WorldLoadEvent;
  *       Liminal world is first created.</li>
  *   <li><b>World load</b> &ndash; applies game rules (mob spawning, weather, PvP, hunger)
  *       and re-registers BlueMap integration when the world loads.</li>
+ *   <li><b>Eternal midnight</b> &ndash; disables the daylight cycle and periodically
+ *       re-snaps the world time to midnight so the Liminal is always dark.</li>
  *   <li><b>Weather control</b> &ndash; cancels weather changes if weather is disabled
  *       in the configuration.</li>
  * </ul>
@@ -27,11 +30,20 @@ import org.bukkit.event.world.WorldLoadEvent;
  */
 public class WorldListener implements Listener {
 
+    /** In-game tick that corresponds to midnight. */
+    private static final long MIDNIGHT_TICKS = 18000L;
+
+    /** How often (in ticks) the time is re-snapped to midnight (100 ticks = 5 seconds). */
+    private static final long MIDNIGHT_CHECK_PERIOD = 100L;
+
     /** Reference to the owning plugin instance. */
     private final LiminalPlugin plugin;
 
     /** Name of the Liminal world. */
     private final String liminalWorldName;
+
+    /** Repeating task that enforces midnight time; never runs concurrently with itself. */
+    private BukkitTask midnightTask;
 
     /**
      * Constructs a new world event listener.
@@ -76,6 +88,9 @@ public class WorldListener implements Listener {
         world.setGameRuleValue("doWeatherCycle", String.valueOf(cfg.isWeatherEnabled()));
         world.setGameRuleValue("pvp", String.valueOf(cfg.isPvp()));
         world.setGameRuleValue("doHunger", String.valueOf(cfg.isHungerEnabled()));
+        world.setGameRuleValue("doDaylightCycle", "false");
+        world.setTime(MIDNIGHT_TICKS);
+        startMidnightEnforcement(world);
 
         plugin.getLogger().info("Liminal world '" + liminalWorldName + "' loaded and configured");
 
@@ -100,5 +115,25 @@ public class WorldListener implements Listener {
         if (!plugin.getLiminalConfig().isWeatherEnabled() && event.toWeatherState()) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Starts a repeating task that re-snaps the world time to midnight every
+     * {@value #MIDNIGHT_CHECK_PERIOD} ticks, so even manually issued
+     * {@code /time set} commands are reverted within seconds.
+     *
+     * @param world the Liminal world to enforce
+     */
+    private void startMidnightEnforcement(World world) {
+        if (midnightTask != null) {
+            midnightTask.cancel();
+        }
+        midnightTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            World liminal = plugin.getServer().getWorld(liminalWorldName);
+            if (liminal == null) return;
+            if (liminal.getTime() != MIDNIGHT_TICKS) {
+                liminal.setTime(MIDNIGHT_TICKS);
+            }
+        }, MIDNIGHT_CHECK_PERIOD, MIDNIGHT_CHECK_PERIOD);
     }
 }

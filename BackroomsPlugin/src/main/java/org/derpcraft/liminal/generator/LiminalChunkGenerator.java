@@ -99,6 +99,7 @@ public class LiminalChunkGenerator extends ChunkGenerator {
                 LiminalLevel level = config.getLevelInstanceById(ring.getId());
                 if (level != null) {
                     level.generate(chunkData, chunkStartX, chunkStartZ, chunkEndX, chunkEndZ, worldMinY, worldMaxY);
+                    generateCutoffWalls(chunkData, chunkX, chunkZ, ring);
                 }
             }
         }
@@ -121,6 +122,123 @@ public class LiminalChunkGenerator extends ChunkGenerator {
     @Override
     public boolean shouldGenerateStructures() {
         return true;
+    }
+
+    /**
+     * Seals multi-floor levels at their ring cutoff with a wall built flush to
+     * the level's own outermost chunk edges.
+     *
+     * <p>Levels that stack floors (e.g. Level 0's four-storey lobby) would
+     * otherwise end at an open edge where their slabs meet the transition
+     * corridor: the corridor's own perimeter wall is only corridor-height, so
+     * every upper floor spills into open air at the cutoff. This method walks
+     * the chunk's neighbours; every face adjacent to a transition chunk gets a
+     * wall column running from just above the ground floor's ceiling slab up
+     * through the top floor's ceiling &mdash; exactly where the level's slabs
+     * end, so there is no gap between structure and wall.</p>
+     *
+     * <p>Ground level stays untouched: the ground floor flows into the
+     * corridor apron and through the corridor's doorway openings as before.
+     * Single-floor levels are a no-op (their cutoff equals the corridor's own
+     * ceiling). Diagonal-only adjacencies (a corridor chunk touching only the
+     * chunk corner) get a single corner column so players cannot squeeze
+     * diagonally past the wall.</p>
+     *
+     * @param chunkData the mutable chunk data
+     * @param chunkX    the chunk's X coordinate
+     * @param chunkZ    the chunk's Z coordinate
+     * @param level     this chunk's level configuration
+     */
+    private void generateCutoffWalls(@NotNull ChunkData chunkData, int chunkX, int chunkZ, @NotNull LevelConfig level) {
+        int baseY = groundCeilingSlabY(level) + 1;
+        int topY = topFloorCeilingY(level);
+        if (topY < baseY) return; // single-floor levels are sealed by the corridor wall
+
+        boolean north = isTransitionChunk(chunkX, chunkZ - 1);
+        boolean south = isTransitionChunk(chunkX, chunkZ + 1);
+        boolean west = isTransitionChunk(chunkX - 1, chunkZ);
+        boolean east = isTransitionChunk(chunkX + 1, chunkZ);
+        boolean northEast = isTransitionChunk(chunkX + 1, chunkZ - 1);
+        boolean northWest = isTransitionChunk(chunkX - 1, chunkZ - 1);
+        boolean southEast = isTransitionChunk(chunkX + 1, chunkZ + 1);
+        boolean southWest = isTransitionChunk(chunkX - 1, chunkZ + 1);
+
+        if (!north && !south && !west && !east
+                && !northEast && !northWest && !southEast && !southWest) {
+            return; // interior chunk
+        }
+
+        Material wallMat = level.getWallMaterial();
+
+        if (north) fillWallFace(chunkData, 0, 0, 15, 0, baseY, topY, wallMat);
+        if (south) fillWallFace(chunkData, 0, 15, 15, 15, baseY, topY, wallMat);
+        if (west) fillWallFace(chunkData, 0, 0, 0, 15, baseY, topY, wallMat);
+        if (east) fillWallFace(chunkData, 15, 0, 15, 15, baseY, topY, wallMat);
+
+        // Corner pinches: a corridor chunk touching only this chunk's corner.
+        if (!east && !south && southEast) fillWallFace(chunkData, 15, 15, 15, 15, baseY, topY, wallMat);
+        if (!east && !north && northEast) fillWallFace(chunkData, 15, 0, 15, 0, baseY, topY, wallMat);
+        if (!west && !south && southWest) fillWallFace(chunkData, 0, 15, 0, 15, baseY, topY, wallMat);
+        if (!west && !north && northWest) fillWallFace(chunkData, 0, 0, 0, 0, baseY, topY, wallMat);
+    }
+
+    /**
+     * True when the given neighbour chunk belongs to a transition corridor.
+     *
+     * @param chunkX the neighbour chunk's X coordinate
+     * @param chunkZ the neighbour chunk's Z coordinate
+     * @return whether the neighbour is a corridor chunk
+     */
+    private boolean isTransitionChunk(int chunkX, int chunkZ) {
+        return config.getTransitionForChunk(chunkX, chunkZ) != null;
+    }
+
+    /**
+     * Fills a wall between two chunk-local corners (inclusive), spanning the
+     * given Y range.
+     *
+     * @param chunkData the mutable chunk data
+     * @param fromX     local X of one corner
+     * @param fromZ     local Z of one corner
+     * @param toX       local X of the other corner
+     * @param toZ       local Z of the other corner
+     * @param baseY     the lowest wall Y (inclusive)
+     * @param topY      the highest wall Y (inclusive)
+     * @param material  the wall material
+     */
+    private void fillWallFace(@NotNull ChunkData chunkData, int fromX, int fromZ, int toX, int toZ,
+                              int baseY, int topY, @NotNull Material material) {
+        for (int x = Math.min(fromX, toX); x <= Math.max(fromX, toX); x++) {
+            for (int z = Math.min(fromZ, toZ); z <= Math.max(fromZ, toZ); z++) {
+                for (int y = baseY; y <= topY; y++) {
+                    chunkData.setBlock(x, y, z, material);
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns the Y of the given level's ground floor's ceiling slab.
+     *
+     * @param level the level configuration
+     * @return the ground ceiling slab Y
+     */
+    private int groundCeilingSlabY(LevelConfig level) {
+        return level.getMinY() + level.getElevationStep() + level.getFloorOffset() + level.getCeilingHeight();
+    }
+
+    /**
+     * Returns the ceiling Y of the given level's topmost floor (its full
+     * structural height, including stacked floors and the elevation step).
+     *
+     * @param level the level configuration
+     * @return the top floor's ceiling slab Y
+     */
+    private int topFloorCeilingY(LevelConfig level) {
+        int floorHeight = level.getCeilingHeight() + 1;
+        return level.getMinY() + level.getElevationStep()
+                + (level.getFloors() - 1) * floorHeight
+                + level.getFloorOffset() + level.getCeilingHeight();
     }
 
     /**

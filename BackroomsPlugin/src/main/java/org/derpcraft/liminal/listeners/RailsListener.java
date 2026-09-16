@@ -12,20 +12,22 @@ import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.ChunkLoadEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 import org.derpcraft.liminal.LiminalPlugin;
+import org.derpcraft.liminal.config.FeatureSpec;
 import org.derpcraft.liminal.config.LevelConfig;
+import org.derpcraft.liminal.config.LootEntry;
+import org.derpcraft.liminal.config.RailNetworkSpec;
 import org.derpcraft.liminal.generator.levels.LiminalLevel;
-import org.derpcraft.liminal.generator.levels.Level3TheRails;
+import org.derpcraft.liminal.generator.features.RailNetworkFeature;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 /**
- * Spawns ghost minecarts on Level 3's powered rail network.
+ * Spawns ghost minecarts on rail-network levels' powered rail grids.
  *
  * <p>When a rail chunk loads for the first time (tracked via the chunk's
  * persistent data container so each chunk only ever gets one visit), the
@@ -34,6 +36,10 @@ import java.util.Random;
  * The stable booster torches keep it rolling; from then on the cart roams the
  * network on its own. Some carts are chest carts still holding the previous
  * crew's supplies.</p>
+ *
+ * <p>Any level with a {@code rail-network} feature gets ghost carts — the
+ * listener reads the level's parsed rail spec (grid geometry, chances, cart
+ * supplies) rather than hardcoding a specific level ID.</p>
  *
  * <p>Everything is deterministic per chunk (seeded from the world seed and the
  * chunk coordinates), so regenerating a world reproduces the same hauntings.</p>
@@ -60,9 +66,13 @@ public class RailsListener implements Listener {
         chunk.getPersistentDataContainer().set(cartFlagKey, PersistentDataType.BYTE, (byte) 1);
 
         LevelConfig ring = plugin.getLiminalConfig().getLevelForChunk(chunk.getX(), chunk.getZ());
-        if (ring == null || !ring.isEnabled() || !"level3".equals(ring.getId())) return;
+        if (ring == null || !ring.isEnabled()) return;
 
-        double chance = ring.getGhostCartChance();
+        FeatureSpec railSpec = ring.getFeature("rail-network");
+        if (railSpec == null) return;
+        RailNetworkSpec rails = new RailNetworkSpec(railSpec);
+
+        double chance = rails.ghostCartChance();
         if (chance <= 0) return;
 
         LiminalLevel level = plugin.getLiminalConfig().getLevelInstanceById(ring.getId());
@@ -79,7 +89,7 @@ public class RailsListener implements Listener {
 
         // Pick a candidate powered rail cell, verifying the block actually is one
         // (broken track or terrain edits may have removed it).
-        List<int[]> cells = Level3TheRails.poweredRailCells(chunk.getX(), chunk.getZ());
+        List<int[]> cells = RailNetworkFeature.poweredRailCells(rails, chunk.getX(), chunk.getZ());
         Collections.shuffle(cells, random);
         for (int[] cell : cells) {
             Block block = chunk.getBlock(cell[0] & 15, railY, cell[2] & 15);
@@ -97,29 +107,11 @@ public class RailsListener implements Listener {
                         ? event.getWorld().spawn(at, StorageMinecart.class)
                         : event.getWorld().spawn(at, RideableMinecart.class);
                 cart.setVelocity(new Vector(dx, 0, dz));
-                if (cart instanceof StorageMinecart chest) {
-                    fillSupplyChest(chest, random);
+                if (cart instanceof StorageMinecart chestCartEntity) {
+                    LootEntry.fillInventory(chestCartEntity.getInventory(), rails.cartSupplies(), random);
                 }
             });
             return; // one cart per chunk at most
-        }
-    }
-
-    /** Fills a ghost chest cart with a few supplies the previous crew left behind. */
-    private void fillSupplyChest(StorageMinecart cart, Random random) {
-        ItemStack[] supplies = {
-                new ItemStack(Material.RAIL, 4 + random.nextInt(8)),
-                new ItemStack(Material.POWERED_RAIL, 2 + random.nextInt(4)),
-                new ItemStack(Material.REDSTONE_TORCH, 2 + random.nextInt(4)),
-                new ItemStack(Material.REDSTONE, 1 + random.nextInt(6)),
-                new ItemStack(Material.COAL, 3 + random.nextInt(6)),
-                new ItemStack(Material.BOOK, 1),
-                new ItemStack(Material.NAME_TAG, 1),
-        };
-        for (ItemStack item : supplies) {
-            if (random.nextDouble() < 0.5) {
-                cart.getInventory().addItem(item);
-            }
         }
     }
 }

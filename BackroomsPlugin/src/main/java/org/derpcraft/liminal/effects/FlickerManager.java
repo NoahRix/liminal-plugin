@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>How it works</h2>
  * <ol>
- *   <li>During world generation, {@code Level0Lobby} marks 10% of sea lanterns
+ *   <li>During world generation, the level engine marks configured shares of lights
  *       as flickering by calling {@link #markFlickering(Location)}</li>
  *   <li>When a player enters the Liminal world, a {@link FlickerTask} is
  *       started for them via {@link #startFlickering(Player)}</li>

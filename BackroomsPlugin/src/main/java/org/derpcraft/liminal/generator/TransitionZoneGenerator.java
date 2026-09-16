@@ -2,8 +2,10 @@ package org.derpcraft.liminal.generator;
 
 import org.bukkit.Material;
 import org.bukkit.generator.ChunkGenerator;
+import org.derpcraft.liminal.config.FeatureSpec;
 import org.derpcraft.liminal.config.LiminalConfig;
 import org.derpcraft.liminal.config.LevelConfig;
+import org.derpcraft.liminal.config.RailNetworkSpec;
 
 import java.util.List;
 import java.util.Random;
@@ -26,9 +28,6 @@ import java.util.Random;
  *   <li><b>Perimeter walls</b> &mdash; circular walls at both corridor edges
  *       (with regular doorway openings) separate the corridor from the open
  *       plazas of the pure levels on either side.</li>
- *   <li><b>Signage</b> &mdash; standing signs at regular intervals announce the
- *       transition ("LEVEL 0 &rarr;" / "&rarr; LEVEL 1"); the populator writes
- *       the text.</li>
  *   <li><b>Rails</b> &mdash; when the outer level has a rail network, the grid
  *       lines climb the slope with per-cell ascending shapes and stable booster
  *       torches. Viaducts are skipped on the slope (crossings place a plain
@@ -122,6 +121,7 @@ public class TransitionZoneGenerator {
                             chunkData.setBlock(localX, y, localZ, wallMat);
                         }
                     }
+
                     continue; // no props inside wall columns
                 }
 
@@ -131,12 +131,6 @@ public class TransitionZoneGenerator {
                     for (int y = slab + 1; y < ceilY; y++) {
                         chunkData.setBlock(localX, y, localZ, wallMat);
                     }
-                    continue;
-                }
-
-                // Transition signs at sparse grid points.
-                if (mod(wx, 24) == 0 && mod(wz, 24) == 0) {
-                    chunkData.setBlock(localX, slab + 1, localZ, Material.OAK_SIGN);
                     continue;
                 }
 
@@ -150,25 +144,35 @@ public class TransitionZoneGenerator {
             }
         }
 
-        // Rails climb the slope when the outer level has a rail network.
-        if (to.isRails() && !from.isRails()) {
-            generateCorridorRails(chunkData, chunkStartX, chunkStartZ, t, inner, outer);
+        // Rails climb the slope when the outer level has a rail network (and
+        // the inner level does not, so the two networks don't overlap).
+        FeatureSpec toRail = to.getFeature("rail-network");
+        if (toRail != null && from.getFeature("rail-network") == null) {
+            generateCorridorRails(chunkData, chunkStartX, chunkStartZ, t, inner, outer,
+                    new RailNetworkSpec(toRail));
         }
     }
 
     /**
      * Lays rail onto the corridor's sloped walkway for grid cells, with
      * per-cell shapes derived from the local slope and stable booster torches.
-     * Rails stop short of both corridor edges so carts never hit a wall.
+     * Rails stop short of both corridor edges so carts never hit a wall. The
+     * grid geometry comes from the outer level's rail spec, so any rail-enabled
+     * level pairs seamlessly with its corridor.
      */
     private void generateCorridorRails(ChunkGenerator.ChunkData chunkData,
                                        int chunkStartX, int chunkStartZ,
                                        LiminalConfig.TransitionInfo t,
-                                       double inner, double outer) {
+                                       double inner, double outer,
+                                       RailNetworkSpec rails) {
         Random rand = new Random(seed
                 ^ ((long) chunkStartX * 0x6a09e667L)
                 ^ ((long) chunkStartZ * 0xbb67ae85L)
                 ^ 0x5a3f0c77L);
+
+        int grid = rails.grid();
+        int lineOffset = rails.lineOffset();
+        int powerEvery = rails.powerEvery();
 
         for (int localX = 0; localX < 16; localX++) {
             int wx = chunkStartX + localX;
@@ -177,13 +181,13 @@ public class TransitionZoneGenerator {
                 double dist = Math.sqrt((double) wx * wx + (double) wz * wz);
                 if (dist < inner + 6 || dist > outer - 6) continue;
 
-                boolean onXLine = mod(wz, Level3Grid.GRID) == Level3Grid.LINE_OFFSET;
-                boolean onZLine = mod(wx, Level3Grid.GRID) == Level3Grid.LINE_OFFSET;
+                boolean onXLine = Math.floorMod(wz, grid) == lineOffset;
+                boolean onZLine = Math.floorMod(wx, grid) == lineOffset;
                 boolean crossing = onXLine && onZLine;
                 if (!onXLine && !onZLine) continue;
 
                 // Broken track (config-gated, default never).
-                if (rand.nextDouble() < t.to().getBrokenTrackChance()) continue;
+                if (rand.nextDouble() < rails.brokenTrackChance()) continue;
 
                 int railY = floorYAt(dist, t) + 1;
 
@@ -193,8 +197,9 @@ public class TransitionZoneGenerator {
                     continue;
                 }
 
-                boolean powered = onXLine ? mod(wx, Level3Grid.POWER_EVERY) == 0
-                                          : mod(wz, Level3Grid.POWER_EVERY) == 0;
+                boolean powered = onXLine
+                        ? Math.floorMod(wx, powerEvery) == 0
+                        : Math.floorMod(wz, powerEvery) == 0;
                 setRail(chunkData, wx, railY, wz, powered, onXLine, t);
             }
         }
@@ -247,13 +252,6 @@ public class TransitionZoneGenerator {
             int tz = onXLine ? z + 1 : z;
             chunkData.setBlock(tx & 15, railY, tz & 15, Material.REDSTONE_TORCH);
         }
-    }
-
-    /** Holds the constant grid geometry shared with {@link org.derpcraft.liminal.generator.levels.Level3TheRails}. */
-    private static final class Level3Grid {
-        static final int GRID = 32;
-        static final int LINE_OFFSET = 16;
-        static final int POWER_EVERY = 8;
     }
 
     /**

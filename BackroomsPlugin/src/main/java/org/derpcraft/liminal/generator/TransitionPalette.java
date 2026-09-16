@@ -5,7 +5,9 @@ import org.bukkit.Material;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Colour palette for automatic transition gradients.
@@ -25,13 +27,35 @@ import java.util.Map;
  *       (squared Euclidean distance in RGB).</li>
  * </ol>
  *
- * <p>Gradients are memoised per material pair, so the nearest-material search
+ * <p>Only <b>crude, solid building blocks</b> take part in gradients: full
+ * opaque cubes, free of ores, ores-decor (iron bars, grates, glass), light
+ * emitters, falling blocks, blocks with faces, and organic/technical blocks.
+ * The full colour table is kept intact because the viewer renders all world
+ * blocks; {@link #isGradientBlock} filters what the generator may place.
+ * Gradients are memoised per material pair, so the nearest-material search
  * only runs once per pair per session.</p>
  */
 public final class TransitionPalette {
 
     /** Number of gradient samples between the two endpoint materials. */
     public static final int STEPS = 64;
+
+    /**
+     * Full-cube materials explicitly banned from gradients despite being
+     * technically solid: ores, glowing blocks, blocks with faces, organic and
+     * technical blocks &mdash; anything that reads as decoration or resource,
+     * not crude construction material.
+     */
+    private static final Set<String> EXCLUDED = Set.of(
+            // Ores and ore-like blocks
+            "coal_ore", "deepslate_coal_ore", "deepslate_diamond_ore", "deepslate_gold_ore",
+            "deepslate_iron_ore", "diamond_ore", "emerald_ore", "gold_ore", "iron_ore",
+            "lapis_ore", "redstone_ore", "gilded_blackstone", "ancient_debris",
+            // Light emitters
+            "glowstone", "crying_obsidian",
+            // Blocks with faces / technical / organic
+            "hay_block", "dried_kelp_block", "bookshelf", "barrel", "crafting_table",
+            "grass_block", "podzol", "netherite_block");
 
     /** Material name (Bukkit enum name) to 0xRRGGBB colour. */
     private static final Map<String, Integer> P = new HashMap<>();
@@ -183,11 +207,26 @@ public final class TransitionPalette {
         P.put("yellow_terracotta", 0xB98423);
 
         for (Map.Entry<String, Integer> e : P.entrySet()) {
-            Material mat = Material.matchMaterial(e.getKey().toUpperCase());
-            if (mat == null || !mat.isBlock()) continue;
+            Material mat = Material.matchMaterial(e.getKey().toUpperCase(Locale.ROOT));
+            if (mat == null || !isGradientBlock(mat)) continue;
             int rgb = e.getValue();
             PALETTE.add(new Entry(mat, rgb));
         }
+    }
+
+    /**
+     * True when the material may appear inside automatic gradients: a solid,
+     * full, opaque cube without gravity, and not on the decoration exclusion
+     * list. Structural filters (occluding cube, no gravity) automatically rule
+     * out bars, panes, glass, leaves, snow layers and falling blocks; the
+     * explicit list rules out ores and other full-cube decoration.
+     *
+     * @param mat the material to test
+     * @return whether the material is a crude, solid building block
+     */
+    private static boolean isGradientBlock(Material mat) {
+        if (!mat.isBlock() || !mat.isOccluding() || mat.hasGravity()) return false;
+        return !EXCLUDED.contains(mat.name().toLowerCase(Locale.ROOT));
     }
 
     private TransitionPalette() {
