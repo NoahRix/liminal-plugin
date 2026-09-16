@@ -15,6 +15,10 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.derpcraft.liminal.effects.FlickerManager;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 /**
  * Handles player-related events in the Liminal world.
  *
@@ -36,6 +40,9 @@ public class PlayerListener implements Listener {
 
     /** Name of the Liminal world. */
     private final String liminalWorldName;
+
+    /** Last level shown on a player's action bar, keyed by player UUID. */
+    private final Map<UUID, String> shownLevels = new HashMap<>();
 
     /**
      * Constructs a new player event listener.
@@ -59,17 +66,24 @@ public class PlayerListener implements Listener {
         if (liminalWorld != null && player.getWorld() == liminalWorld) {
             sendLevelMessage(player);
             startFlickerEffect(player);
+            LevelConfig level = plugin.getLiminalConfig().getLevelForChunk(
+                    player.getLocation().getBlockX() >> 4,
+                    player.getLocation().getBlockZ() >> 4);
+            if (level != null) {
+                shownLevels.put(player.getUniqueId(), level.getId());
+            }
         }
     }
 
     /**
-     * Handles player quit to stop flicker effects.
+     * Handles player quit to stop flicker effects and forget the last shown level.
      *
      * @param event the player quit event
      */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerQuit(PlayerQuitEvent event) {
         stopFlickerEffect(event.getPlayer());
+        shownLevels.remove(event.getPlayer().getUniqueId());
     }
 
     /**
@@ -130,7 +144,10 @@ public class PlayerListener implements Listener {
 
     /**
      * Shows the current level name on the action bar when a player crosses a chunk border
-     * in the Liminal world.
+     * in the Liminal world into a different level.
+     *
+     * <p>Only resends when the level ring actually changes, so the action bar no longer
+     * spams while walking within a level.</p>
      *
      * @param event the player move event
      */
@@ -149,9 +166,17 @@ public class PlayerListener implements Listener {
         LevelConfig level = plugin.getLiminalConfig().getLevelForChunk(
                 player.getLocation().getBlockX() >> 4,
                 player.getLocation().getBlockZ() >> 4);
-        if (level != null) {
-            player.sendActionBar(ChatColor.GOLD + level.getName());
+        if (level == null) return;
+
+        UUID playerUuid = player.getUniqueId();
+        String levelId = level.getId();
+        String shown = shownLevels.get(playerUuid);
+        if (levelId.equals(shown)) {
+            return;
         }
+
+        shownLevels.put(playerUuid, levelId);
+        player.sendActionBar(ChatColor.GOLD + level.getName());
     }
 
     /**
