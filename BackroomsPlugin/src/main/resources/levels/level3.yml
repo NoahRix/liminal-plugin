@@ -41,9 +41,6 @@ layout:
   doorway-height: 3
 
 features:
-  - type: stray-chest   # rare loose chest; chance is per chunk
-    chance: 0.004
-
   - type: rail-network
     # Grid geometry
     grid: 32            # one line every `grid` blocks
@@ -64,26 +61,9 @@ features:
       platform-depth: 3        # blocks away from the track
       sign: OAK_SIGN
       sign-count: 2
-      chest: CHEST
       torch: REDSTONE_TORCH
-      # Station chest contents: each entry rolls independently per chest
-      # (chance 0.0-1.0 to be included, amount random between min and max).
-      supplies:
-        - {material: RAIL, min: 4, max: 13, chance: 0.6}
-        - {material: POWERED_RAIL, min: 2, max: 7, chance: 0.6}
-        - {material: REDSTONE_TORCH, min: 2, max: 7, chance: 0.6}
-        - {material: REDSTONE, min: 1, max: 8, chance: 0.6}
-        - {material: COAL, min: 3, max: 10, chance: 0.6}
-        - {material: BOOK, min: 1, max: 2, chance: 0.6}
-      # Ghost chest-cart contents (25% of ghost carts carry supplies)
-      cart-supplies:
-        - {material: RAIL, min: 4, max: 11, chance: 0.5}
-        - {material: POWERED_RAIL, min: 2, max: 5, chance: 0.5}
-        - {material: REDSTONE_TORCH, min: 2, max: 5, chance: 0.5}
-        - {material: REDSTONE, min: 1, max: 6, chance: 0.5}
-        - {material: COAL, min: 3, max: 8, chance: 0.5}
-        - {material: BOOK, min: 1, max: 1, chance: 0.5}
-        - {material: NAME_TAG, min: 1, max: 1, chance: 0.5}
+      # Ghost cart spawn chance is driven by ghost-cart-chance above; station
+      # supply chests are no longer generated (chests are removed from all levels).
 
 # Optional per-level transition gradient override (blending INTO this level).
 # Leave commented to let the generator derive an automatic colour-space

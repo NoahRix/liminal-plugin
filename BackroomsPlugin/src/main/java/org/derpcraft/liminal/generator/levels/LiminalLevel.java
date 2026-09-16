@@ -41,7 +41,6 @@ import java.util.Random;
  *   <li>{@link #calculateRoomLayout} &ndash; deterministic room grid from the seed</li>
  *   <li>{@link #generateWallsAndDoorways} &ndash; walls with doorway cut-outs</li>
  *   <li>{@link #generateLighting} &ndash; ceiling lights or floor torches, with optional flicker</li>
- *   <li>{@link #generateLootChest} &ndash; the {@code stray-chest} feature</li>
  *   <li>{@link #generateFeatures} &ndash; integral and per-block feature handlers</li>
  *   <li>{@link #generateStairwell} &ndash; corner spiral stairwell (multi-floor levels)</li>
  * </ol>
@@ -50,9 +49,8 @@ import java.util.Random;
  * <p>The level's {@code features:} list drives decoration. Per-block features
  * (hanging decor, floor pools, wall columns) share one deterministic random and
  * roll in file order for every room-interior block; integral features (rail
- * networks) run their own pass with their own random. The {@code stray-chest}
- * feature is consumed by the pipeline itself. Stairwells are configured under
- * {@code layout.stairwell} because they interleave with the floor loop.</p>
+ * networks) run their own pass with their own random. Stairwells are configured
+ * under {@code layout.stairwell} because they interleave with the floor loop.</p>
  */
 public class LiminalLevel {
 
@@ -186,8 +184,6 @@ public class LiminalLevel {
                 generateWallsAndDoorways(chunkData, layout, floorY, ceilingY, chunkStartX, chunkStartZ);
                 generateLighting(chunkData, layout, ceilingY, chunkStartX, chunkStartZ);
             }
-
-            generateLootChest(chunkData, layout, floorY, chunkStartX, chunkStartZ);
 
             generateFeatures(chunkData, layout, floorY, ceilingY, chunkStartX, chunkStartZ);
 
@@ -331,6 +327,7 @@ public class LiminalLevel {
 
                 if (isGarageLightAnchor(worldX, worldZ, boundaryPeriod, lightRotation)) {
                     chunkData.setBlock(localX, ceilingY, localZ, Material.SEA_LANTERN);
+                    registerGarageLightFlicker(worldX, ceilingY, worldZ);
                 }
             }
         }
@@ -365,6 +362,43 @@ public class LiminalLevel {
         }
         // 4 lights offset 2 blocks diagonally from corners: (2,2), (13,2), (2,13), (13,13)
         return (localX == 2 || localX == 13) && (localZ == 2 || localZ == 13);
+    }
+
+    /**
+     * Registers a deterministic share of the parking garage's sea lanterns as
+     * flickering for the fluorescent light effect.
+     *
+     * <p>The garage places its own rotation-aware bay lights inside
+     * {@link #generateParkingGarageDeck}, so flicker registration happens here
+     * rather than through the generic ceiling-light pass (which is skipped for
+     * garages entirely). The level's {@code lighting.flicker-chance} still
+     * controls how many lanterns flicker, and the {@link FlickerManager} entry
+     * defaults (SEA_LANTERN &rarr; GRAY_CONCRETE) suit the garage's ceiling
+     * fixtures. Buzz follows automatically: {@code BuzzTask} plays the fluorescent
+     * hum from the nearest registered flickering light.</p>
+     *
+     * @param worldX   world X of the lantern
+     * @param ceilingY world Y of the ceiling surface
+     * @param worldZ   world Z of the lantern
+     */
+    private void registerGarageLightFlicker(int worldX, int ceilingY, int worldZ) {
+        FlickerManager flickerManager = LiminalPlugin.getFlickerManager();
+        LiminalPlugin plugin = LiminalPlugin.getInstance();
+        if (flickerManager == null || plugin == null) return;
+
+        World world = plugin.getServer().getWorld(plugin.getLiminalConfig().getLiminalWorldName());
+        if (world == null) return;
+
+        double chance = config.getLightFlickerChance();
+        if (chance <= 0) return;
+
+        Random flickerRand = new Random(
+                seed ^ ((long) worldX * 0x85ebca6bL) ^ ((long) worldZ * 0xc2b2ae35L)
+                ^ config.getIdHashCode() ^ ((long) ceilingY * 0x27d4eb2fL));
+
+        if (flickerRand.nextDouble() < chance) {
+            flickerManager.markFlickering(new Location(world, worldX, ceilingY, worldZ));
+        }
     }
 
     /** Places the parking spot markings based on quadrant rotation. */
@@ -780,43 +814,6 @@ public class LiminalLevel {
     }
 
     /**
-     * Places a stray loot chest at a rare, deterministic position within the chunk.
-     *
-     * <p>Driven by the level's {@code stray-chest} feature entry; levels without
-     * one keep the historical 0.4% chance. The position is derived from a seeded
-     * random to remain deterministic across server restarts.</p>
-     *
-     * @param chunkData    the mutable chunk data
-     * @param layout       the computed room layout for this chunk
-     * @param floorY       the Y coordinate of the floor surface
-     * @param chunkStartX  world X of the chunk's western edge
-     * @param chunkStartZ  world Z of the chunk's northern edge
-     */
-    private void generateLootChest(ChunkGenerator.ChunkData chunkData,
-                                     RoomLayout layout,
-                                     int floorY,
-                                     int chunkStartX, int chunkStartZ) {
-        FeatureSpec stray = config.getFeature("stray-chest");
-        double chance = stray != null && stray.getChance() >= 0 ? stray.getChance() : 0.004;
-        if (chance <= 0) {
-            return;
-        }
-
-        // floorY is mixed in so multi-floor levels don't place chests at the
-        // same relative position on every floor.
-        Random chunkRand = new Random(
-                (long) chunkStartX * 341873128712L + (long) chunkStartZ * 132897987541L
-                ^ seed ^ config.getIdHashCode() ^ (floorY * 0x2545f491L)
-        );
-
-        if (chunkRand.nextInt(1000) < (int) Math.round(chance * 1000)) {
-            int chestX = chunkRand.nextInt(16);
-            int chestZ = chunkRand.nextInt(16);
-            chunkData.setBlock(chestX, floorY + 1, chestZ, Material.CHEST);
-        }
-    }
-
-    /**
      * Runs the level's configured features: integral features first (each with
      * its own deterministic random), then the shared per-block pass.
      *
@@ -832,7 +829,7 @@ public class LiminalLevel {
                                     int floorY, int ceilingY,
                                     int chunkStartX, int chunkStartZ) {
         for (FeatureSpec spec : config.getFeatures()) {
-            if (spec.getType().equals("stray-chest") || spec.getType().equals("parking-garage")) continue;
+            if (spec.getType().equals("parking-garage")) continue;
             if (PER_BLOCK_FEATURES.containsKey(spec.getType())) continue; // handled in the per-block pass
 
             IntegralFeature handler = INTEGRAL_FEATURES.get(spec.getType());

@@ -85,7 +85,7 @@ public class LiminalPopulator extends BlockPopulator {
         long seed = config.getGenerationSeed() != 0 ? config.getGenerationSeed() : worldInfo.getSeed();
         Random seededRandom = new Random(seed ^ ((long) chunkX * 341873128712L + (long) chunkZ * 132897987541L));
 
-        // Rail levels: fill in station sign text and station supply chests.
+        // Rail levels: fill in station sign text.
         FeatureSpec railSpec = level.getFeature("rail-network");
         if (railSpec != null) {
             decorateRails(limitedRegion, chunkX, chunkZ, instance, new RailNetworkSpec(railSpec), seededRandom);
@@ -177,16 +177,15 @@ public class LiminalPopulator extends BlockPopulator {
 
     /**
      * Decorates a rail-level chunk: writes cryptic text onto the station sign
-     * posts and fills station chests with the previous crew's supplies. All
-     * materials and supplies come from the level's rail-network spec, so any
-     * rail-enabled level gets stations automatically.
+     * posts. All materials come from the level's rail-network spec, so any
+     * rail-enabled level gets stations automatically. Station supply chests
+     * are no longer generated — chests are removed from all levels.
      */
     private void decorateRails(@NotNull LimitedRegion region, int chunkX, int chunkZ,
                                @NotNull LiminalLevel level, @NotNull RailNetworkSpec rails,
                                @NotNull Random random) {
         int floorSurfaceY = level.getFloorSurfaceY();
         Material signMat = rails.signMaterial();
-        Material chestMat = rails.chestMaterial();
 
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
@@ -200,12 +199,6 @@ public class LiminalPopulator extends BlockPopulator {
                     if (state instanceof org.bukkit.block.Sign sign) {
                         sign.setLine(1, STATION_MESSAGES[random.nextInt(STATION_MESSAGES.length)]);
                         sign.update();
-                    }
-                } else if (type == chestMat) {
-                    org.bukkit.block.BlockState state = region.getBlockState(globalX, floorSurfaceY + 1, globalZ);
-                    if (state instanceof org.bukkit.block.Chest chest) {
-                        LootEntry.fillInventory(chest.getInventory(), rails.supplies(), random);
-                        chest.update();
                     }
                 }
             }

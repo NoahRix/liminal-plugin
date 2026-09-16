@@ -34,8 +34,8 @@ import java.util.Random;
  *       registered as flickering &mdash; killing one would strand minecarts
  *       mid-network.</li>
  *   <li>Stations every {@code station-every} blocks along an X line: a platform
- *       with sign posts (filled in by the populator with cryptic messages), a
- *       supply chest, and torches.</li>
+ *       with sign posts (filled in by the populator with cryptic messages) and
+ *       torches.</li>
  * </ul>
  *
  * <h2>Creepy details</h2>
@@ -307,8 +307,7 @@ public final class RailNetworkFeature implements IntegralFeature {
             chunkData.setBlock((x + signOffsets[i]) & 15, railY, (z + 2) & 15, rails.signMaterial());
         }
 
-        // Supply chest and lighting.
-        chunkData.setBlock((x + 2) & 15, railY, (z + 1 + platformDepth) & 15, rails.chestMaterial());
+        // Lighting (no supply chest — chests are removed from all levels).
         chunkData.setBlock((x + 0) & 15, railY, (z + 2) & 15, rails.torchMaterial());
         chunkData.setBlock((x + platformLength - 1) & 15, railY, (z + 2) & 15, rails.torchMaterial());
     }

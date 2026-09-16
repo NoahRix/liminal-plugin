@@ -6,9 +6,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Minecart;
 import org.bukkit.entity.minecart.RideableMinecart;
-import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.ChunkLoadEvent;
@@ -17,7 +15,6 @@ import org.bukkit.util.Vector;
 import org.derpcraft.liminal.LiminalPlugin;
 import org.derpcraft.liminal.config.FeatureSpec;
 import org.derpcraft.liminal.config.LevelConfig;
-import org.derpcraft.liminal.config.LootEntry;
 import org.derpcraft.liminal.config.RailNetworkSpec;
 import org.derpcraft.liminal.generator.levels.LiminalLevel;
 import org.derpcraft.liminal.generator.features.RailNetworkFeature;
@@ -34,8 +31,7 @@ import java.util.Random;
  * listener rolls the level's {@code ghost-cart-chance} and, on success, spawns
  * an empty minecart on one of the chunk's powered rails with a small push.
  * The stable booster torches keep it rolling; from then on the cart roams the
- * network on its own. Some carts are chest carts still holding the previous
- * crew's supplies.</p>
+ * network on its own.</p>
  *
  * <p>Any level with a {@code rail-network} feature gets ghost carts — the
  * listener reads the level's parsed rail spec (grid geometry, chances, cart
@@ -97,19 +93,14 @@ public class RailsListener implements Listener {
 
             final double dx = cell[3] == 0 ? (random.nextBoolean() ? 0.4 : -0.4) : 0;
             final double dz = cell[3] == 1 ? (random.nextBoolean() ? 0.4 : -0.4) : 0;
-            final boolean chestCart = random.nextDouble() < 0.25;
             final Location at = new Location(event.getWorld(), cell[0] + 0.5, railY + 0.06, cell[2] + 0.5);
 
             // Spawn one tick later so the freshly loaded chunk is fully ready.
+            // Only empty rideable carts are spawned — storage carts are gone
+            // since chests were removed from all levels.
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (!event.getWorld().isChunkLoaded(chunk.getX(), chunk.getZ())) return;
-                Minecart cart = chestCart
-                        ? event.getWorld().spawn(at, StorageMinecart.class)
-                        : event.getWorld().spawn(at, RideableMinecart.class);
-                cart.setVelocity(new Vector(dx, 0, dz));
-                if (cart instanceof StorageMinecart chestCartEntity) {
-                    LootEntry.fillInventory(chestCartEntity.getInventory(), rails.cartSupplies(), random);
-                }
+                event.getWorld().spawn(at, RideableMinecart.class).setVelocity(new Vector(dx, 0, dz));
             });
             return; // one cart per chunk at most
         }

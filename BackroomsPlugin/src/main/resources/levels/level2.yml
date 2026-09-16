@@ -39,8 +39,6 @@ layout:
   doorway-height: 2
 
 features:
-  - type: stray-chest   # rare loose chest; chance is per chunk
-    chance: 0.004
   - type: pipes         # bundles of aging copper pipes along every wall
     chance: 0.85        # per wall
     height-offset: 2    # blocks below the ceiling for the top row

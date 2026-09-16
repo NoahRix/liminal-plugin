@@ -42,10 +42,6 @@ layout:
     stairs: OAK_STAIRS
     cap-light: SEA_LANTERN
 
-features:
-  - type: stray-chest   # rare loose chest; chance is per chunk
-    chance: 0.004
-
 # Optional per-level transition gradient override (blending INTO this level).
 # Leave commented to let the generator derive an automatic colour-space
 # gradient from the two levels' own materials.
